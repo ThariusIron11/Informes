@@ -1678,18 +1678,35 @@ async function updateThumbAt(idx) {
   } catch(e) { /* silencioso */ }
 }
 
+let _scrollSpySuppressed = false;
+let _suppressTimer = null;
+
 function goToPage(idx) {
   activePageNav = idx;
-  renderPageNav();
-  // Scroll the pages-area to the target page
+
+  // Update active state in nav DOM without full re-render (avoids layout jump)
+  document.querySelectorAll('#pnpList .pnp-item').forEach((el, i) => {
+    el.classList.toggle('active', i === idx);
+  });
+  document.querySelectorAll('#pnpList .pnp-num').forEach((el, i) => {
+    el.style.color = i === idx ? 'var(--rojo)' : '';
+  });
+
+  // Scroll to page — suppress scroll spy so it doesn't override activePageNav
   const area = document.getElementById('pagesArea');
   const wrappers = area.querySelectorAll('.page-wrapper, .final-page-wrapper');
   if (wrappers[idx]) {
+    _scrollSpySuppressed = true;
+    clearTimeout(_suppressTimer);
+    _suppressTimer = setTimeout(() => { _scrollSpySuppressed = false; }, 900);
     wrappers[idx].scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
-  // Switch to páginas tab if not already
-  const tabPag = document.querySelector('.tab:nth-child(2)');
+
+  // Switch to páginas tab if not already (nth-child(1) = Páginas, nth-child(2) = Proyectos)
+  const tabPag = document.querySelector('.tab:nth-child(1)');
   if (tabPag && !tabPag.classList.contains('active')) switchTab('paginas', tabPag);
+
+  scheduleThumbUpdate(idx);
 }
 
 function updateNav() { renderPageNav(); initScrollSpy(); }
@@ -1703,6 +1720,7 @@ function initScrollSpy() {
 }
 
 function onPagesScroll() {
+  if (_scrollSpySuppressed) return;
   const area = document.getElementById('pagesArea');
   if (!area) return;
   const wrappers = Array.from(area.querySelectorAll('.page-wrapper, .final-page-wrapper'));
