@@ -1422,11 +1422,31 @@ async function exportarPDF() {
 
   const pdfBytes = await pdfDoc.save();
   const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+  const fileName = `${nombre}.pdf`;
+
+  // Detectar si corre como PWA instalada (standalone) o en navegador normal
+  const esPWA = window.matchMedia('(display-mode: standalone)').matches
+             || window.navigator.standalone === true;
+
+  const file = new File([blob], fileName, { type: 'application/pdf' });
+  if (esPWA && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: fileName });
+      showToast('PDF compartido ✓');
+      return;
+    } catch(e) {
+      if (e.name === 'AbortError') { showToast('Cancelado'); return; }
+      // Si falla, caer al método clásico
+    }
+  }
+  // Descarga clásica (navegador web o fallback)
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `edisatech_${nombre.replace(/\s+/g,'_')}.pdf`;
+  a.download = fileName;
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(a.href);
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   showToast('PDF descargado ✓');
 }
 
