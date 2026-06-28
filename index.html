@@ -611,6 +611,14 @@ body { font-family: var(--font); background: #12141e; color: var(--panel-text); 
 #d-reporte ul, #d-reporte ol { padding-left: 18px; margin: 2px 0; }
 #final-reporte-display ul, #final-reporte-display ol { padding-left: 18px; margin: 2px 0; }
 
+#d-notas:empty::before {
+  content: attr(data-placeholder);
+  color: var(--panel-muted);
+  pointer-events: none;
+  font-style: italic;
+}
+#d-notas:focus { border-color: var(--rojo); }
+
 /* ── RESIZE IMAGEN en slot ── */
 .foto-slot img {
   position: absolute; inset: 0; width: 100%; height: 100%;
@@ -640,6 +648,9 @@ body { font-family: var(--font); background: #12141e; color: var(--panel-text); 
 .proy-card-meta { font-size: 11px; color: var(--panel-muted); line-height: 1.6; }
 .proy-card-meta span { color: var(--panel-text); font-weight: 600; }
 .proy-card-fecha { font-size: 10px; color: var(--panel-muted); }
+.proy-card-nota { font-size: 11px; color: var(--panel-muted); margin-top: 5px; padding: 5px 7px; background: #12141e; border-left: 2px solid var(--rojo); border-radius: 0 4px 4px 0; line-height: 1.5; }
+.proy-card-nota-toggle { background: none; border: none; color: var(--panel-muted); font-size: 11px; font-weight: 700; cursor: pointer; padding: 3px 0; font-family: var(--font); transition: color .15s; }
+.proy-card-nota-toggle:hover { color: var(--rojo); }
 .proy-card-actions { display: flex; gap: 6px; margin-top: 4px; }
 .proy-btn { flex: 1; padding: 6px; border-radius: 6px; border: none; cursor: pointer; font-size: 11px; font-weight: 700; transition: all .15s; font-family: var(--font); }
 .proy-btn-open { background: var(--rojo); color: #fff; }
@@ -843,10 +854,13 @@ body { font-family: var(--font); background: #12141e; color: var(--panel-text); 
       </div>
       <div class="field"><label>Garantía</label><input type="text" id="d-garantia" value="3 MESES"></div>
       <div class="field" style="margin-top:8px"><label>Responsable</label><input type="text" id="resp-nombre" placeholder="Nombre de quien firma"></div>
+      <div class="sec-label" style="margin-top:14px">Notas</div>
+      <div id="d-notas" contenteditable="true"
+        data-placeholder="Observaciones adicionales para la ficha..."
+        style="background:#12141e;border:1px solid var(--panel-border);color:var(--panel-text);border-radius:6px;padding:7px 10px;font-size:11px;font-family:var(--font);width:100%;min-height:70px;max-height:160px;overflow-y:auto;outline:none;line-height:1.6;word-break:break-word;margin-top:4px"
+        ></div>
     </div>
   </div>
-
-</div>
 
 
 <!-- EDITOR MODAL -->
@@ -2115,6 +2129,7 @@ async function cargarProyectos() {
             equipo: datos.datos?.equipo || '—',
             ingeniero: datos.datos?.ingeniero || '—',
             fecha: datos.datos?.fecha || '',
+            notas: datos.datos?.notas || '',
             fechaGuardado: file.lastModified,
           });
         } catch (e) { /* archivo inválido, ignorar */ }
@@ -2148,6 +2163,13 @@ function filtrarProyectos() {
   renderProyectos(lista);
 }
 
+function toggleNota(btn) {
+  const nota = btn.nextElementSibling;
+  const open = nota.style.display === 'none';
+  nota.style.display = open ? 'block' : 'none';
+  btn.textContent = open ? '📝 Nota ▴' : '📝 Nota ▾';
+}
+
 function renderProyectos(lista) {
   const cont = document.getElementById('proyLista');
   const empty = document.getElementById('proyEmpty');
@@ -2176,6 +2198,9 @@ function renderProyectos(lista) {
         👷 <span>${p.ingeniero}</span><br>
         📅 <span>${fecha}</span>
       </div>
+      ${p.notas ? `
+      <button class="proy-card-nota-toggle" onclick="toggleNota(this)" title="Ver nota">📝 Nota ▾</button>
+      <div class="proy-card-nota" style="display:none">${p.notas}</div>` : ''}
       <div class="proy-card-fecha">Guardado: ${fechaMod}</div>
       <div class="proy-card-actions">
         <button class="proy-btn proy-btn-open" onclick="abrirProyectoDesdeHandle(this)">📂 Abrir</button>
@@ -2260,6 +2285,7 @@ function buildEstado() {
       entrega:   document.getElementById('d-entrega').value,
       reporte:   document.getElementById('d-reporte').innerHTML,
       garantia:  document.getElementById('d-garantia').value,
+      notas:     document.getElementById('d-notas') ? document.getElementById('d-notas').innerHTML : '',
     },
     cotRows,
     mediaFiles,
@@ -2295,6 +2321,7 @@ function cargarEstado(estado) {
   document.getElementById('d-entrega').value     = d.entrega   || '';
   document.getElementById('d-reporte').innerHTML = d.reporte   || '';
   document.getElementById('d-garantia').value    = d.garantia  || '3 MESES';
+  if (document.getElementById('d-notas')) document.getElementById('d-notas').innerHTML = d.notas || '';
   cotRows      = estado.cotRows      || [];
   mediaFiles   = estado.mediaFiles   || [];
   pages        = estado.pages        || [];
@@ -2512,7 +2539,6 @@ recuperarCarpetaDeIDB().then(handle => {
 ['d-entrega','d-garantia','resp-nombre'].forEach(id => {
   document.getElementById(id).addEventListener('input', () => { if (pages.length) renderFinalPageOnly(); });
 });
-// d-reporte es contenteditable; su oninput llama renderFinalPageOnly directamente
 </script>
 
 <!-- ── PWA: Registro del Service Worker ── -->
