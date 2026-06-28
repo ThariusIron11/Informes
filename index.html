@@ -2283,42 +2283,41 @@ function guardarProyecto() {
   showToast('Proyecto guardado ✓');
 }
 
+function cargarEstado(estado) {
+  if (!estado.version || !estado.pages) throw new Error('Archivo inválido');
+  const d = estado.datos || {};
+  document.getElementById('d-empresa').value     = d.empresa   || '';
+  document.getElementById('d-ingeniero').value   = d.ingeniero || '';
+  document.getElementById('d-equipo').value      = d.equipo    || '';
+  document.getElementById('d-fecha').value       = d.fecha     || '';
+  document.getElementById('d-entrega').value     = d.entrega   || '';
+  document.getElementById('d-reporte').innerHTML = d.reporte   || '';
+  document.getElementById('d-garantia').value    = d.garantia  || '3 MESES';
+  cotRows      = estado.cotRows      || [];
+  mediaFiles   = estado.mediaFiles   || [];
+  pages        = estado.pages        || [];
+  pageCounter  = estado.pageCounter  || 0;
+  mediaCounter = estado.mediaCounter || 0;
+  renderCot();
+  renderMediaGrid();
+  renderPages();
+  switchTab('paginas', document.querySelector('.tab:nth-child(1)'));
+  showToast('Proyecto cargado ✓');
+}
+
 function abrirProyecto(input) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
     try {
-      const estado = JSON.parse(e.target.result);
-      if (!estado.version || !estado.pages) throw new Error('Archivo inválido');
-      // Restaurar datos del formulario
-      const d = estado.datos || {};
-      document.getElementById('d-empresa').value   = d.empresa   || '';
-      document.getElementById('d-ingeniero').value = d.ingeniero || '';
-      document.getElementById('d-equipo').value    = d.equipo    || '';
-      document.getElementById('d-fecha').value     = d.fecha     || '';
-
-      document.getElementById('d-entrega').value   = d.entrega   || '';
-      document.getElementById('d-reporte').innerHTML = d.reporte   || '';
-      document.getElementById('d-garantia').value  = d.garantia  || '3 MESES';
-      // Restaurar estado global
-      cotRows      = estado.cotRows      || [];
-      mediaFiles   = estado.mediaFiles   || [];
-      pages        = estado.pages        || [];
-      pageCounter  = estado.pageCounter  || 0;
-      mediaCounter = estado.mediaCounter || 0;
-      // Re-render todo
-      renderCot();
-      renderMediaGrid();
-      renderPages();
-      switchTab('paginas', document.querySelector('.tab:nth-child(2)'));
-      showToast('Proyecto cargado ✓');
+      cargarEstado(JSON.parse(e.target.result));
     } catch (err) {
       alert('No se pudo abrir el archivo. ¿Es un proyecto de EDISATECH?');
     }
   };
   reader.readAsText(file);
-  input.value = ''; // reset para poder abrir el mismo archivo otra vez
+  input.value = '';
 }
 
 // ── RICH TEXT EDITOR ──
