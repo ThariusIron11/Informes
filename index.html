@@ -1424,22 +1424,39 @@ async function exportarPDF() {
   const blob = new Blob([pdfBytes], { type: 'application/pdf' });
   const fileName = `${nombre}.pdf`;
 
-  // Detectar si corre como PWA instalada (standalone) o en navegador normal
+  // Share API solo en móvil con PWA instalada
   const esPWA = window.matchMedia('(display-mode: standalone)').matches
              || window.navigator.standalone === true;
+  const esMovil = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
   const file = new File([blob], fileName, { type: 'application/pdf' });
-  if (esPWA && navigator.canShare && navigator.canShare({ files: [file] })) {
+  if (esPWA && esMovil && navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: fileName });
       showToast('PDF compartido ✓');
       return;
     } catch(e) {
       if (e.name === 'AbortError') { showToast('Cancelado'); return; }
-      // Si falla, caer al método clásico
     }
   }
-  // Descarga clásica (navegador web o fallback)
+  // En PC: diálogo "Guardar como" nativo
+  if (!esMovil && window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: fileName,
+        types: [{ description: 'PDF', accept: { 'application/pdf': ['.pdf'] } }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      showToast('PDF guardado ✓');
+      return;
+    } catch(e) {
+      if (e.name === 'AbortError') { showToast('Cancelado'); return; }
+      // Si falla, caer a descarga directa
+    }
+  }
+  // Fallback: descarga directa
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = fileName;
