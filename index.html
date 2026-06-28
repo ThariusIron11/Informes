@@ -2221,8 +2221,9 @@ async function guardarEnCarpeta() {
   }
   try {
     const empresa = document.getElementById('d-empresa').value || 'informe';
+    const equipo  = document.getElementById('d-equipo').value || '';
     const fecha   = document.getElementById('d-fecha').value || new Date().toISOString().split('T')[0];
-    const nombre  = `${empresa}_${fecha}.json`.replace(/[^a-zA-Z0-9_\-\.]/g, '_');
+    const nombre  = (equipo ? `${empresa} - ${equipo} ${fecha}` : `${empresa} ${fecha}`) + '.json';
     const fileHandle = await carpetaHandle.getFileHandle(nombre, { create: true });
     const writable = await fileHandle.createWritable();
     const estado = buildEstado();
@@ -2275,8 +2276,8 @@ function guardarProyecto() {
   a.href = URL.createObjectURL(blob);
   const empresa = document.getElementById('d-empresa').value || 'informe';
   const equipo  = document.getElementById('d-equipo').value  || '';
-  const nombre  = equipo ? `${empresa}_${equipo}` : empresa;
-  a.download = `edisatech_${nombre.replace(/\s+/g,'_')}.json`;
+  const nombre  = equipo ? `${empresa} - ${equipo}` : empresa;
+  a.download = `${nombre}.json`;
   a.click();
   URL.revokeObjectURL(a.href);
   showToast('Proyecto guardado ✓');
