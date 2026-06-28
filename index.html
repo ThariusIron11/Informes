@@ -662,6 +662,7 @@ body { font-family: var(--font); background: #12141e; color: var(--panel-text); 
   <div class="topbar-actions">
     <button id="btnInstalarApp" class="btn btn-ghost" style="display:none" onclick="instalarApp()" title="Instalar como app">⬇ Instalar app</button>
     <button class="btn btn-ghost" onclick="carpetaHandle ? guardarEnCarpeta() : guardarProyecto()" title="Guardar proyecto">💾 Guardar</button>
+    <button class="btn btn-ghost" onclick="guardarProyecto()" title="Guardar como...">💾 Guardar como</button>
     <button class="btn btn-ghost" onclick="document.getElementById('loadInput').click()" title="Abrir proyecto guardado">📂 Abrir</button>
     <input type="file" id="loadInput" accept=".json" style="display:none" onchange="abrirProyecto(this)">
     <button class="btn btn-ghost" onclick="limpiarTodo()">🗑 Limpiar</button>
@@ -2221,9 +2222,8 @@ async function guardarEnCarpeta() {
   }
   try {
     const empresa = document.getElementById('d-empresa').value || 'informe';
-    const equipo  = document.getElementById('d-equipo').value || '';
-    const fecha   = document.getElementById('d-fecha').value || new Date().toISOString().split('T')[0];
-    const nombre  = (equipo ? `${empresa} - ${equipo} ${fecha}` : `${empresa} ${fecha}`) + '.json';
+    const equipo  = document.getElementById('d-equipo').value  || '';
+    const nombre  = (equipo ? `${empresa} - ${equipo}` : empresa) + '.json';
     const fileHandle = await carpetaHandle.getFileHandle(nombre, { create: true });
     const writable = await fileHandle.createWritable();
     const estado = buildEstado();
@@ -2269,6 +2269,7 @@ function buildEstado() {
   };
 }
 
+
 function guardarProyecto() {
   const estado = buildEstado();
   const blob = new Blob([JSON.stringify(estado)], { type: 'application/json' });
@@ -2282,6 +2283,7 @@ function guardarProyecto() {
   URL.revokeObjectURL(a.href);
   showToast('Proyecto guardado ✓');
 }
+
 
 function cargarEstado(estado) {
   if (!estado.version || !estado.pages) throw new Error('Archivo inválido');
