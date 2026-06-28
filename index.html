@@ -2225,13 +2225,13 @@ async function guardarEnCarpeta() {
     const nombre  = `${empresa}_${fecha}.json`.replace(/[^a-zA-Z0-9_\-\.]/g, '_');
     const fileHandle = await carpetaHandle.getFileHandle(nombre, { create: true });
     const writable = await fileHandle.createWritable();
-    const estado = guardarProyecto(true);
+    const estado = buildEstado();
     await writable.write(JSON.stringify(estado));
     await writable.close();
     await cargarProyectos();
     showToast('Guardado en carpeta: ' + nombre + ' ✓');
   } catch(e) {
-    if (e.name !== 'AbortError') { showToast('Error al guardar'); guardarProyecto(); }
+    if (e.name !== 'AbortError') showToast('Error al guardar en carpeta');
   }
 }
 
@@ -2247,8 +2247,8 @@ function instalarApp() {
 }
 
 // ── GUARDAR / ABRIR PROYECTO ──
-function guardarProyecto() {
-  const estado = {
+function buildEstado() {
+  return {
     version: 1,
     fecha: new Date().toISOString(),
     datos: {
@@ -2256,17 +2256,20 @@ function guardarProyecto() {
       ingeniero: document.getElementById('d-ingeniero').value,
       equipo:    document.getElementById('d-equipo').value,
       fecha:     document.getElementById('d-fecha').value,
-
       entrega:   document.getElementById('d-entrega').value,
       reporte:   document.getElementById('d-reporte').innerHTML,
       garantia:  document.getElementById('d-garantia').value,
     },
     cotRows,
-    mediaFiles,   // incluye las imágenes en base64
+    mediaFiles,
     pages,
     pageCounter,
     mediaCounter,
   };
+}
+
+function guardarProyecto() {
+  const estado = buildEstado();
   const blob = new Blob([JSON.stringify(estado)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
