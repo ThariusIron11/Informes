@@ -1,4 +1,4 @@
-const CACHE_NAME = 'edisatech-v1';
+const CACHE_NAME = 'edisatech-v2';
 
 // Archivos que se cachean al instalar
 const PRECACHE_URLS = [
