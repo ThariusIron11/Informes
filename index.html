@@ -619,7 +619,26 @@ body { font-family: var(--font); background: #12141e; color: var(--panel-text); 
 }
 #d-notas:focus { border-color: var(--rojo); }
 
-/* ── RESIZE IMAGEN en slot ── */
+/* ── BANNER DE ACTUALIZACIÓN ── */
+.update-banner {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: #1a1c24; border: 1px solid var(--rojo);
+  border-radius: 10px; padding: 12px 18px;
+  display: flex; align-items: center; gap: 12px;
+  z-index: 9999; box-shadow: 0 4px 20px rgba(0,0,0,.6);
+  font-size: 13px; color: var(--panel-text);
+  animation: slideUp .3s ease;
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.update-banner-btn {
+  background: var(--rojo); color: #fff; border: none;
+  border-radius: 6px; padding: 6px 14px; font-size: 12px;
+  font-weight: 700; cursor: pointer; white-space: nowrap;
+}
+.update-banner-btn:hover { background: var(--rojo-dark); }
 .foto-slot img {
   position: absolute; inset: 0; width: 100%; height: 100%;
   object-fit: fill; background: #fff;
@@ -912,6 +931,10 @@ body { font-family: var(--font); background: #12141e; color: var(--panel-text); 
 </div>
 
 <div class="toast" id="toast"></div>
+<div id="updateBanner" style="display:none" class="update-banner">
+  🔄 <span>Hay una actualización disponible</span>
+  <button class="update-banner-btn" onclick="aplicarActualizacion()">Actualizar ahora</button>
+</div>
 
 <script>
 // ── ESTADO ──
@@ -2340,6 +2363,7 @@ function buildEstado() {
       entrega:   document.getElementById('d-entrega').value,
       reporte:   document.getElementById('d-reporte').innerHTML,
       garantia:  document.getElementById('d-garantia').value,
+      responsable: document.getElementById('resp-nombre') ? document.getElementById('resp-nombre').value : '',
       notas:     document.getElementById('d-notas') ? document.getElementById('d-notas').innerHTML : '',
     },
     cotRows,
@@ -2376,6 +2400,7 @@ function cargarEstado(estado) {
   document.getElementById('d-entrega').value     = d.entrega   || '';
   document.getElementById('d-reporte').innerHTML = d.reporte   || '';
   document.getElementById('d-garantia').value    = d.garantia  || '3 MESES';
+  if (document.getElementById('resp-nombre')) document.getElementById('resp-nombre').value = d.responsable || '';
   if (document.getElementById('d-notas')) document.getElementById('d-notas').innerHTML = d.notas || '';
   cotRows      = estado.cotRows      || [];
   mediaFiles   = estado.mediaFiles   || [];
@@ -2604,6 +2629,18 @@ if ('serviceWorker' in navigator) {
       .then(reg => console.log('[SW] Registrado:', reg.scope))
       .catch(err => console.warn('[SW] Error:', err));
   });
+
+  // Escuchar mensaje del SW cuando hay nueva versión activa
+  navigator.serviceWorker.addEventListener('message', event => {
+    if (event.data && event.data.type === 'SW_UPDATED') {
+      document.getElementById('updateBanner').style.display = 'flex';
+    }
+  });
+}
+
+function aplicarActualizacion() {
+  document.getElementById('updateBanner').style.display = 'none';
+  window.location.reload();
 }
 
 // Botón de instalación PWA

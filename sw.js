@@ -17,7 +17,7 @@ self.addEventListener('install', event => {
   self.skipWaiting();
 });
 
-// ── ACTIVATE: limpiar cachés viejos ──
+// ── ACTIVATE: limpiar cachés viejos y notificar actualización ──
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
@@ -26,10 +26,15 @@ self.addEventListener('activate', event => {
           .filter(key => key !== CACHE_NAME)
           .map(key => caches.delete(key))
       )
-    )
+    ).then(() => {
+      return self.clients.claim();
+    }).then(() => {
+      // Notificar a todos los clientes que hay una nueva versión activa
+      return self.clients.matchAll({ type: 'window' }).then(clients => {
+        clients.forEach(client => client.postMessage({ type: 'SW_UPDATED', version: CACHE_NAME }));
+      });
+    })
   );
-  // Tomar control de todas las pestañas abiertas
-  self.clients.claim();
 });
 
 // ── FETCH: Cache-first para assets, network-first para el resto ──
