@@ -608,6 +608,10 @@ body { font-family: var(--font); background: #12141e; color: var(--panel-text); 
   font-style: italic;
 }
 #d-reporte:focus { border-color: var(--rojo); }
+#d-reporte, #d-reporte div, #d-reporte p, #d-reporte span, #d-reporte font,
+#d-reporte b, #d-reporte i, #d-reporte u, #d-reporte li {
+  color: #e0e2ec !important;
+}
 #d-reporte ul, #d-reporte ol { padding-left: 18px; margin: 2px 0; }
 #final-reporte-display ul, #final-reporte-display ol { padding-left: 18px; margin: 2px 0; }
 
@@ -2437,21 +2441,13 @@ function rteCmd(cmd) {
 function rteAlign(align) {
   const el = document.getElementById('d-reporte');
   el.focus();
-  const sel = window.getSelection();
-  if (!sel || sel.rangeCount === 0) return;
-  // Encontrar bloque hijo directo del editor
-  let node = sel.getRangeAt(0).commonAncestorContainer;
-  if (node.nodeType === 3) node = node.parentNode;
-  while (node && node.parentNode !== el) node = node.parentNode;
-  if (!node || node === el) {
-    document.execCommand('formatBlock', false, 'div');
-    node = sel.getRangeAt(0).commonAncestorContainer;
-    if (node.nodeType === 3) node = node.parentNode;
-    while (node && node.parentNode !== el) node = node.parentNode;
-  }
-  if (node && node !== el) {
-    node.style.textAlign = align;
-  }
+  const cmdMap = { left: 'justifyLeft', center: 'justifyCenter', right: 'justifyRight', justify: 'justifyFull' };
+  document.execCommand(cmdMap[align] || 'justifyLeft', false, null);
+  // Quitar cualquier color inline que el navegador haya insertado al crear el bloque alineado
+  el.querySelectorAll('[style*="color"]').forEach(node => {
+    node.style.removeProperty('color');
+    if (!node.getAttribute('style')) node.removeAttribute('style');
+  });
   el.dispatchEvent(new Event('input'));
 }
 function rteSize(val) {
