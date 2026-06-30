@@ -2337,6 +2337,7 @@ async function guardarEnCarpeta() {
     await writable.write(JSON.stringify(estado));
     await writable.close();
     await cargarProyectos();
+    marcarComoGuardado(estado);
     showToast('Guardado en carpeta: ' + nombre + ' ✓');
   } catch(e) {
     if (e.name !== 'AbortError') showToast('Error al guardar en carpeta');
@@ -2354,7 +2355,29 @@ function instalarApp() {
   }
 }
 
-// ── GUARDAR / ABRIR PROYECTO ──
+// ── DETECCIÓN DE CAMBIOS SIN GUARDAR ──
+let ultimoEstadoGuardado = null;
+function marcarComoGuardado(estadoYaCalculado) {
+  const estado = estadoYaCalculado || buildEstado();
+  ultimoEstadoGuardado = JSON.stringify(estado);
+}
+function hayCambiosSinGuardar() {
+  if (ultimoEstadoGuardado === null) return false;
+  try {
+    return JSON.stringify(buildEstado()) !== ultimoEstadoGuardado;
+  } catch (e) {
+    return false;
+  }
+}
+window.addEventListener('beforeunload', function (e) {
+  if (hayCambiosSinGuardar()) {
+    e.preventDefault();
+    e.returnValue = '';
+    return '';
+  }
+});
+
+
 function buildEstado() {
   return {
     version: 1,
@@ -2390,6 +2413,7 @@ function guardarProyecto() {
   a.download = `${nombre}.json`;
   a.click();
   URL.revokeObjectURL(a.href);
+  marcarComoGuardado(estado);
   showToast('Proyecto guardado ✓');
 }
 
@@ -2415,6 +2439,7 @@ function cargarEstado(estado) {
   renderMediaGrid();
   renderPages();
   switchTab('paginas', document.querySelector('.tab:nth-child(1)'));
+  marcarComoGuardado(estado);
   showToast('Proyecto cargado ✓');
 }
 
@@ -2615,6 +2640,9 @@ recuperarCarpetaDeIDB().then(handle => {
 ['d-entrega','d-garantia','resp-nombre'].forEach(id => {
   document.getElementById(id).addEventListener('input', () => { if (pages.length) renderFinalPageOnly(); });
 });
+
+// Tomar snapshot inicial para detectar cambios sin guardar a partir de aquí
+setTimeout(() => { marcarComoGuardado(); }, 0);
 </script>
 
 <!-- ── PWA: Registro del Service Worker ── -->
