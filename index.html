@@ -326,11 +326,26 @@ body { font-family: var(--font); background: #12141e; color: var(--panel-text); 
   text-align: center; font-size: 9px; color: #888; padding: 2px 4px 3px;
   background: var(--gris-light); border-top: 1px solid var(--gris);
 }
-.foto-caption input {
-  background: transparent; border: none; font-size: 9px; color: #666;
+.foto-caption textarea {
+  background: transparent; border: none; font-size: 9px; color: #000;
   text-align: center; width: 100%; font-family: Arial, sans-serif;
+  line-height: 1.25; resize: none; overflow: hidden;
+  display: block; white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word;
 }
-.foto-caption input:focus { outline: none; color: var(--negro); }
+.foto-caption textarea:focus { outline: none; color: #000; }
+.foto-caption-print {
+  font-size: 9px; color: #000; line-height: 1.25; text-align: center;
+  font-family: Arial, sans-serif; white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.foto-caption-row { display: flex; align-items: stretch; gap: 2px; }
+.fc-size-btn {
+  flex-shrink: 0; width: 16px; border: none; background: var(--gris);
+  color: #555; font-size: 9px; font-weight: 700; cursor: pointer; border-radius: 3px;
+  line-height: 1; display: flex; align-items: center; justify-content: center;
+}
+.fc-size-btn:hover { background: var(--rojo); color: #fff; }
+.foto-caption-row textarea { flex: 1; min-width: 0; }
 
 /* Barra roja inferior */
 .carta-footer-bar { background: var(--rojo); height: 8px; }
@@ -1029,11 +1044,14 @@ function setZonaCount(pageId, zonaId, n) {
   if (!p) return;
   const z = p.zonas.find(z => z.id === zonaId);
   if (!z) return;
-  // Preservar fotos existentes
-  const existing = z.slots.map(s => s.imgId).filter(Boolean);
+  // Preservar fotos y descripciones existentes por posición
+  const oldSlots = z.slots;
   z.count = n;
-  z.slots = makeSlots(n);
-  existing.forEach((imgId, i) => { if (z.slots[i]) z.slots[i].imgId = imgId; });
+  const newSlots = makeSlots(n);
+  for (let i = 0; i < n; i++) {
+    if (oldSlots[i]) newSlots[i] = oldSlots[i];
+  }
+  z.slots = newSlots;
   renderPages();
 }
 
@@ -1151,7 +1169,7 @@ function renderPages() {
     });
 
     // Eventos captions
-    carta.querySelectorAll('.foto-caption input').forEach(inp => {
+    carta.querySelectorAll('.foto-caption textarea').forEach(inp => {
       inp.addEventListener('input', () => {
         const pid = parseInt(inp.dataset.pid);
         const zid = parseInt(inp.dataset.zid);
@@ -1159,6 +1177,29 @@ function renderPages() {
         const p = pages.find(p => p.id === pid);
         const z = p && p.zonas.find(z => z.id === zid);
         if (z && z.slots[si]) z.slots[si].caption = inp.value;
+      });
+    });
+
+    // Eventos botones tamaño de letra (A- / A+) por foto
+    carta.querySelectorAll('.fc-size-btn').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const pid = parseInt(btn.dataset.pid);
+        const zid = parseInt(btn.dataset.zid);
+        const si  = parseInt(btn.dataset.si);
+        const delta = parseInt(btn.dataset.delta);
+        const p = pages.find(p => p.id === pid);
+        const z = p && p.zonas.find(z => z.id === zid);
+        const slot = z && z.slots[si];
+        if (!slot) return;
+        const actual = slot.fontSize || 9;
+        const nuevo = Math.min(16, Math.max(6, actual + delta));
+        slot.fontSize = nuevo;
+        const ta = btn.parentElement.querySelector('textarea');
+        if (ta) {
+          ta.style.fontSize = nuevo + 'px';
+          ta.style.height = (Math.round(nuevo * 1.25) * 2 + 2) + 'px';
+        }
       });
     });
 
@@ -1200,6 +1241,18 @@ function renderPages() {
 }
 
 function buildSlotHTML(slot, pid, zid, si, height) {
+  function escapeHTML(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  const fs = slot.fontSize || 9;
+  const cajaAlto = Math.round(fs * 1.25) * 2 + 2; // alto exacto en px para 2 líneas
+  const captionHTML = `<div class="foto-caption">
+    <div class="foto-caption-row">
+      <button type="button" class="fc-size-btn" data-pid="${pid}" data-zid="${zid}" data-si="${si}" data-delta="-1" title="Reducir letra">A-</button>
+      <textarea placeholder="Descripción..." rows="2" maxlength="300" style="font-size:${fs}px;height:${cajaAlto}px" data-pid="${pid}" data-zid="${zid}" data-si="${si}">${escapeHTML(slot.caption || '')}</textarea>
+      <button type="button" class="fc-size-btn" data-pid="${pid}" data-zid="${zid}" data-si="${si}" data-delta="1" title="Aumentar letra">A+</button>
+    </div>
+  </div>`;
   const h = height ? `style="min-height:${height}px"` : '';
   if (slot.imgId) {
     const f = mediaFiles.find(f => f.id === slot.imgId);
@@ -1212,13 +1265,13 @@ function buildSlotHTML(slot, pid, zid, si, height) {
         <button class="fo-btn" data-pid="${pid}" data-zid="${zid}" data-si="${si}" data-action="quitar">✕ Quitar</button>
       </div>
     </div>
-    <div class="foto-caption"><input type="text" placeholder="Descripción..." data-pid="${pid}" data-zid="${zid}" data-si="${si}" value="${slot.caption || ''}"></div>`;
+    ${captionHTML}`;
   }
   return `<div class="foto-slot" data-pid="${pid}" data-zid="${zid}" data-si="${si}" ${h}>
     <div class="fs-icon">🖼</div>
     <div class="fs-hint">Clic para asignar<br>o arrastra aquí</div>
   </div>
-  <div class="foto-caption"><input type="text" placeholder="Descripción..." data-pid="${pid}" data-zid="${zid}" data-si="${si}" value="${slot.caption || ''}"></div>`;
+  ${captionHTML}`;
 }
 
 function buildZonaHTML(zona, pid, label, height, vertical) {
@@ -1361,6 +1414,27 @@ function limpiarTodo() {
   showToast('Limpiado ✓');
 }
 
+// ── Helpers: reemplazar textareas de descripción por texto plano al exportar ──
+function prepararCaptionsParaExport(el) {
+  const swaps = [];
+  el.querySelectorAll('.foto-caption textarea').forEach(ta => {
+    const div = document.createElement('div');
+    div.className = 'foto-caption-print';
+    div.style.fontSize = (ta.style.fontSize || '9px');
+    div.textContent = ta.value || '';
+    ta.style.display = 'none';
+    ta.insertAdjacentElement('afterend', div);
+    swaps.push({ ta, div });
+  });
+  return swaps;
+}
+function restaurarCaptionsTrasExport(swaps) {
+  swaps.forEach(({ ta, div }) => {
+    div.remove();
+    ta.style.display = '';
+  });
+}
+
 // ── EXPORT PDF (html2canvas + pdf-lib con campos AcroForm en valores) ──
 async function exportarPDF() {
   const empresa = document.getElementById('d-empresa').value || '—';
@@ -1378,20 +1452,30 @@ async function exportarPDF() {
 
   showToast('Generando PDF…');
 
+  // Forzar zoom al 100% durante la exportación para que las descripciones
+  // no se vean apiñadas (el zoom de vista afecta el layout real del DOM)
+  const _zoomPrevio = currentZoom;
+  const _scaleWrapEl = document.getElementById('pagesScaleWrap');
+  if (_scaleWrapEl) _scaleWrapEl.style.zoom = 1;
+
   const A4_W = 595.28, A4_H = 841.89; // puntos PDF
   const { PDFDocument, rgb, StandardFonts } = PDFLib;
   const pdfDoc = await PDFDocument.create();
   const form   = pdfDoc.getForm();
 
+  let pdfBytes;
+  try {
   // Ocultar elementos de UI que no deben ir en el PDF
-  const uiEls = document.querySelectorAll('#pagesArea .zona-label, #pagesArea .fs-overlay, #pagesArea .fo-btn');
+  const uiEls = document.querySelectorAll('#pagesArea .zona-label, #pagesArea .fs-overlay, #pagesArea .fo-btn, #pagesArea .fc-size-btn');
   uiEls.forEach(el => { el._bakDisplay = el.style.display || ''; el.style.display = 'none'; });
 
   // Páginas fotográficas
   const cartaEls = Array.from(document.querySelectorAll('#pagesArea .page-wrapper .carta'));
   for (let i = 0; i < cartaEls.length; i++) {
     const el = cartaEls[i];
+    const captionSwaps = prepararCaptionsParaExport(el);
     const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#fff', logging: false });
+    restaurarCaptionsTrasExport(captionSwaps);
     const imgData = canvas.toDataURL('image/jpeg', 0.92);
     const imgBytes = await fetch(imgData).then(r => r.arrayBuffer());
     const img = await pdfDoc.embedJpg(imgBytes);
@@ -1447,7 +1531,12 @@ async function exportarPDF() {
     });
   }
 
-  const pdfBytes = await pdfDoc.save();
+  pdfBytes = await pdfDoc.save();
+  } finally {
+    // Restaurar el zoom de vista que tenía el usuario antes de exportar,
+    // pase lo que pase durante la captura
+    if (_scaleWrapEl) _scaleWrapEl.style.zoom = _zoomPrevio;
+  }
   const blob = new Blob([pdfBytes], { type: 'application/pdf' });
   const fileName = `${nombre}.pdf`;
 
