@@ -181,6 +181,29 @@ body { font-family: var(--font); background: #12141e; color: var(--panel-text); 
   background: #0e1018; border-bottom: 1px solid var(--panel-border);
   padding: 10px 16px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; flex-wrap: wrap;
 }
+.proy-tabs-bar {
+  background: #16181f; border-bottom: 1px solid var(--panel-border);
+  padding: 6px 10px; display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  overflow-x: auto; flex-wrap: nowrap;
+}
+.proy-tabs-bar::-webkit-scrollbar { height: 3px; }
+.proy-tab-chip {
+  display: flex; align-items: center; gap: 6px; padding: 5px 6px 5px 12px;
+  border-radius: 7px; background: #1a1c24; border: 1px solid var(--panel-border);
+  font-size: 11px; color: var(--panel-muted); white-space: nowrap; flex-shrink: 0; transition: all .15s;
+}
+.proy-tab-chip.active { background: var(--panel-bg); border-color: var(--rojo); color: var(--panel-text); }
+.proy-tab-chip .ptc-nombre { cursor: pointer; max-width: 160px; overflow: hidden; text-overflow: ellipsis; font-weight: 700; }
+.proy-tab-chip .ptc-close {
+  background: none; border: none; color: var(--panel-muted); cursor: pointer;
+  font-size: 11px; padding: 2px 5px; border-radius: 4px; line-height: 1;
+}
+.proy-tab-chip .ptc-close:hover { background: #e74c3c; color: #fff; }
+.ptc-add {
+  background: transparent; border: 1px dashed var(--panel-border); color: var(--panel-muted);
+  border-radius: 7px; padding: 5px 10px; font-size: 13px; font-weight: 800; cursor: pointer; flex-shrink: 0;
+}
+.ptc-add:hover { border-color: var(--rojo); color: var(--rojo); }
 .pt-label { font-size: 10px; font-weight: 700; color: var(--panel-muted); text-transform: uppercase; letter-spacing: .5px; }
 .add-page-btn {
   padding: 6px 13px; border-radius: 6px; border: 1px solid var(--panel-border);
@@ -677,7 +700,7 @@ body { font-family: var(--font); background: #12141e; color: var(--panel-text); 
 
 /* ── TAB PROYECTOS ── */
 .proy-card {
-  background: var(--panel2); border: 1px solid var(--panel-border);
+  background: var(--panel-bg); border: 1px solid var(--panel-border);
   border-radius: 10px; padding: 14px; display: flex; flex-direction: column;
   gap: 8px; transition: border-color .15s;
 }
@@ -757,6 +780,7 @@ body { font-family: var(--font); background: #12141e; color: var(--panel-text); 
 
       <!-- ÁREA PRINCIPAL DE PÁGINAS -->
       <div style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+        <div class="proy-tabs-bar" id="proyTabsBar"></div>
         <div class="pages-toolbar">
           <span class="pt-label">Agregar:</span>
           <button class="add-page-btn primary" onclick="addPaginaRF()">+ Página fotográfica</button>
@@ -789,13 +813,13 @@ body { font-family: var(--font); background: #12141e; color: var(--panel-text); 
         <!-- Buscador -->
         <div style="display:flex;align-items:center;gap:6px">
           <input id="proyBuscador" type="text" placeholder="🔍 Buscar proyecto..." oninput="filtrarProyectos()"
-            style="background:var(--panel2);border:1px solid var(--panel-border);color:var(--panel-text);border-radius:6px;padding:6px 10px;font-size:12px;font-family:var(--font);width:200px">
+            style="background:var(--panel-bg);border:1px solid var(--panel-border);color:var(--panel-text);border-radius:6px;padding:6px 10px;font-size:12px;font-family:var(--font);width:200px">
         </div>
         <!-- Ordenamiento -->
         <div style="display:flex;align-items:center;gap:6px">
           <span style="font-size:11px;color:var(--panel-muted);font-weight:700">Ordenar:</span>
           <select id="proyOrden" onchange="filtrarProyectos()"
-            style="background:var(--panel2);border:1px solid var(--panel-border);color:var(--panel-text);border-radius:6px;padding:5px 8px;font-size:12px;font-family:var(--font);cursor:pointer">
+            style="background:var(--panel-bg);border:1px solid var(--panel-border);color:var(--panel-text);border-radius:6px;padding:5px 8px;font-size:12px;font-family:var(--font);cursor:pointer">
             <option value="fecha-desc">Fecha ↓ (más reciente)</option>
             <option value="fecha-asc">Fecha ↑ (más antiguo)</option>
             <option value="nombre-asc">Nombre A → Z</option>
@@ -1400,6 +1424,189 @@ function calcTotal() {
 }
 
 // ── LIMPIAR ──
+// ── SISTEMA DE PESTAÑAS DE PROYECTOS (multi-proyecto) ──
+let proyectosAbiertos = [];
+let tabActivoId = null;
+
+function generarTabId() { return 't' + Date.now() + Math.random().toString(36).slice(2,7); }
+
+function nombreDeTab(tab) {
+  const d = (tab.estado && tab.estado.datos) || {};
+  if (d.empresa) return d.equipo ? `${d.empresa} - ${d.equipo}` : d.empresa;
+  return tab.nombre || 'Nuevo proyecto';
+}
+
+function snapshotTabActual() {
+  if (!tabActivoId) return;
+  const tab = proyectosAbiertos.find(t => t.id === tabActivoId);
+  if (!tab) return;
+  tab.estado = buildEstado();
+  tab.nombre = nombreDeTab(tab);
+}
+
+function activarTab(id) {
+  if (id === tabActivoId) return;
+  snapshotTabActual();
+  const tab = proyectosAbiertos.find(t => t.id === id);
+  if (!tab) return;
+  tabActivoId = id;
+  const estado = tab.estado;
+  const d = estado.datos || {};
+  document.getElementById('d-empresa').value     = d.empresa   || '';
+  document.getElementById('d-ingeniero').value   = d.ingeniero || '';
+  document.getElementById('d-equipo').value      = d.equipo    || '';
+  document.getElementById('d-fecha').value       = d.fecha     || '';
+  document.getElementById('d-entrega').value     = d.entrega   || '';
+  document.getElementById('d-reporte').innerHTML = d.reporte   || '';
+  document.getElementById('d-garantia').value    = d.garantia  || '3 MESES';
+  if (document.getElementById('resp-nombre')) document.getElementById('resp-nombre').value = d.responsable || '';
+  if (document.getElementById('d-notas')) document.getElementById('d-notas').innerHTML = d.notas || '';
+  cotRows      = estado.cotRows      || [];
+  mediaFiles   = estado.mediaFiles   || [];
+  pages        = estado.pages        || [];
+  pageCounter  = estado.pageCounter  || 0;
+  mediaCounter = estado.mediaCounter || 0;
+  renderCot();
+  renderMediaGrid();
+  renderPages();
+  renderPageNav();
+  renderProyTabsUI();
+}
+
+function renderProyTabsUI() {
+  const bar = document.getElementById('proyTabsBar');
+  if (!bar) return;
+  bar.innerHTML = '';
+  proyectosAbiertos.forEach(tab => {
+    const chip = document.createElement('div');
+    chip.className = 'proy-tab-chip' + (tab.id === tabActivoId ? ' active' : '');
+    const nombreSpan = document.createElement('span');
+    nombreSpan.className = 'ptc-nombre';
+    const nom = nombreDeTab(tab);
+    nombreSpan.textContent = nom;
+    nombreSpan.title = nom;
+    nombreSpan.onclick = () => activarTab(tab.id);
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'ptc-close';
+    closeBtn.title = 'Cerrar proyecto';
+    closeBtn.textContent = '✕';
+    closeBtn.onclick = (e) => { e.stopPropagation(); cerrarProyecto(tab.id); };
+    chip.appendChild(nombreSpan);
+    chip.appendChild(closeBtn);
+    bar.appendChild(chip);
+  });
+  const addBtn = document.createElement('button');
+  addBtn.className = 'ptc-add';
+  addBtn.title = 'Nuevo proyecto';
+  addBtn.textContent = '+';
+  addBtn.onclick = () => nuevoProyecto();
+  bar.appendChild(addBtn);
+}
+
+function confirmarCambiosSinGuardar(mensaje) {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `
+      <div style="background:var(--panel-bg);border:1px solid var(--panel-border);border-radius:10px;padding:22px;max-width:360px;width:90%;box-shadow:0 10px 40px rgba(0,0,0,.4)">
+        <div style="font-size:14px;color:var(--panel-text);margin-bottom:18px;line-height:1.5">${mensaje}</div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+          <button data-r="cancelar" style="padding:8px 14px;border-radius:6px;border:1px solid var(--panel-border);background:transparent;color:var(--panel-muted);cursor:pointer;font-family:var(--font);font-size:12px">Cancelar</button>
+          <button data-r="descartar" style="padding:8px 14px;border-radius:6px;border:1px solid #e74c3c;background:transparent;color:#e74c3c;cursor:pointer;font-family:var(--font);font-size:12px">Cerrar sin guardar</button>
+          <button data-r="guardar" style="padding:8px 14px;border-radius:6px;border:none;background:var(--rojo);color:#fff;cursor:pointer;font-family:var(--font);font-size:12px;font-weight:700">Guardar</button>
+        </div>
+      </div>`;
+    overlay.querySelectorAll('button').forEach(btn => {
+      btn.onclick = () => { document.body.removeChild(overlay); resolve(btn.dataset.r); };
+    });
+    document.body.appendChild(overlay);
+  });
+}
+
+function abrirNuevaTabVacia(nombre) {
+  snapshotTabActual();
+  const tab = { id: generarTabId(), estado: null, ultimoGuardado: null, nombre: nombre || 'Nuevo proyecto' };
+  proyectosAbiertos.push(tab);
+  tabActivoId = tab.id;
+  return tab;
+}
+
+function resetFormularioBlanco() {
+  pages = []; mediaFiles = []; cotRows = []; pageCounter = 0; mediaCounter = 0;
+  ['d-empresa','d-ingeniero','d-equipo','d-entrega'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('d-reporte').innerHTML = '';
+  document.getElementById('d-fecha').value = '';
+  document.getElementById('d-garantia').value = '3 MESES';
+  if (document.getElementById('resp-nombre')) document.getElementById('resp-nombre').value = '';
+  if (document.getElementById('d-notas')) document.getElementById('d-notas').innerHTML = '';
+  document.getElementById('totalVal').textContent = '$ 0';
+  renderCot();
+  renderMediaGrid();
+  renderPages();
+  renderPageNav();
+}
+
+function nuevoProyecto() {
+  abrirNuevaTabVacia();
+  resetFormularioBlanco();
+  addCotRow();
+  addPaginaPortada();
+  renderPageNav();
+  marcarComoGuardado();
+  renderProyTabsUI();
+  switchTab('paginas', document.querySelector('.tab:nth-child(1)'));
+  showToast('Nuevo proyecto creado ✓');
+}
+
+async function cerrarProyecto(id) {
+  const targetId = id || tabActivoId;
+  if (!targetId) return;
+  const tab = proyectosAbiertos.find(t => t.id === targetId);
+  if (!tab) return;
+  const esActivo = targetId === tabActivoId;
+
+  if (esActivo) {
+    if (hayCambiosSinGuardar()) {
+      const accion = await confirmarCambiosSinGuardar(`El proyecto "${nombreDeTab(tab)}" tiene cambios sin guardar. ¿Qué deseas hacer?`);
+      if (accion === 'cancelar') return;
+      if (accion === 'guardar') {
+        await guardarProyecto();
+        if (hayCambiosSinGuardar()) return; // se canceló el guardado
+      }
+    }
+  } else {
+    const dirty = tab.ultimoGuardado != null && JSON.stringify(tab.estado) !== tab.ultimoGuardado;
+    if (dirty) {
+      const accion = await confirmarCambiosSinGuardar(`El proyecto "${nombreDeTab(tab)}" tiene cambios sin guardar. ¿Qué deseas hacer?`);
+      if (accion === 'cancelar') return;
+      if (accion === 'guardar') {
+        const idAntes = tabActivoId;
+        activarTab(tab.id);
+        await guardarProyecto();
+        const guardadoOk = !hayCambiosSinGuardar();
+        if (idAntes) activarTab(idAntes);
+        if (!guardadoOk) return;
+      }
+    }
+  }
+
+  proyectosAbiertos = proyectosAbiertos.filter(t => t.id !== targetId);
+
+  if (esActivo) {
+    if (proyectosAbiertos.length) {
+      tabActivoId = null; // forzar que activarTab no haga snapshot del proyecto ya cerrado
+      activarTab(proyectosAbiertos[proyectosAbiertos.length - 1].id);
+      switchTab('paginas', document.querySelector('.tab:nth-child(1)'));
+    } else {
+      tabActivoId = null;
+      resetFormularioBlanco();
+      switchTab('proyectos', document.querySelector('.tab:nth-child(2)'));
+      showToast('Proyecto cerrado');
+    }
+  }
+  renderProyTabsUI();
+}
+
 function limpiarTodo() {
   if (!confirm('¿Borrar todo el informe?')) return;
   pages = []; mediaFiles = []; cotRows = []; pageCounter = 0; mediaCounter = 0;
@@ -2390,9 +2597,9 @@ async function abrirProyectoDesdeHandle(btn) {
     const file = await card._proyHandle.getFile();
     const texto = await file.text();
     const datos = JSON.parse(texto);
+    abrirNuevaTabVacia(card._proyNombre);
     cargarEstado(datos);
-    switchTab('paginas', document.querySelector('.tab:nth-child(1)'));
-    showToast('Proyecto cargado: ' + card._proyNombre + ' ✓');
+    renderProyTabsUI();
   } catch(e) {
     showToast('Error al abrir el proyecto');
   }
@@ -2427,6 +2634,7 @@ async function guardarEnCarpeta() {
     await writable.close();
     await cargarProyectos();
     marcarComoGuardado(estado);
+    renderProyTabsUI();
     showToast('Guardado en carpeta: ' + nombre + ' ✓');
   } catch(e) {
     if (e.name !== 'AbortError') showToast('Error al guardar en carpeta');
@@ -2444,22 +2652,27 @@ function instalarApp() {
   }
 }
 
-// ── DETECCIÓN DE CAMBIOS SIN GUARDAR ──
-let ultimoEstadoGuardado = null;
+// ── DETECCIÓN DE CAMBIOS SIN GUARDAR (por pestaña de proyecto) ──
 function marcarComoGuardado(estadoYaCalculado) {
   const estado = estadoYaCalculado || buildEstado();
-  ultimoEstadoGuardado = JSON.stringify(estado);
+  const tab = proyectosAbiertos.find(t => t.id === tabActivoId);
+  if (tab) tab.ultimoGuardado = JSON.stringify(estado);
 }
 function hayCambiosSinGuardar() {
-  if (ultimoEstadoGuardado === null) return false;
+  const tab = proyectosAbiertos.find(t => t.id === tabActivoId);
+  if (!tab || tab.ultimoGuardado == null) return false;
   try {
-    return JSON.stringify(buildEstado()) !== ultimoEstadoGuardado;
+    return JSON.stringify(buildEstado()) !== tab.ultimoGuardado;
   } catch (e) {
     return false;
   }
 }
+function hayAlgunProyectoSinGuardar() {
+  if (hayCambiosSinGuardar()) return true;
+  return proyectosAbiertos.some(t => t.id !== tabActivoId && t.ultimoGuardado != null && JSON.stringify(t.estado) !== t.ultimoGuardado);
+}
 window.addEventListener('beforeunload', function (e) {
-  if (hayCambiosSinGuardar()) {
+  if (hayAlgunProyectoSinGuardar()) {
     e.preventDefault();
     e.returnValue = '';
     return '';
@@ -2503,6 +2716,7 @@ function guardarProyecto() {
   a.click();
   URL.revokeObjectURL(a.href);
   marcarComoGuardado(estado);
+  renderProyTabsUI();
   showToast('Proyecto guardado ✓');
 }
 
@@ -2538,7 +2752,10 @@ function abrirProyecto(input) {
   const reader = new FileReader();
   reader.onload = e => {
     try {
-      cargarEstado(JSON.parse(e.target.result));
+      const estado = JSON.parse(e.target.result);
+      abrirNuevaTabVacia();
+      cargarEstado(estado);
+      renderProyTabsUI();
     } catch (err) {
       alert('No se pudo abrir el archivo. ¿Es un proyecto de EDISATECH?');
     }
@@ -2705,6 +2922,11 @@ switchTab('paginas', document.querySelector('.tab:nth-child(1)'));
 // Render panel de páginas
 renderPageNav();
 initScrollSpy();
+
+// Inicializar sistema de pestañas de proyectos con la primera pestaña
+tabActivoId = generarTabId();
+proyectosAbiertos.push({ id: tabActivoId, estado: null, ultimoGuardado: null, nombre: 'Nuevo proyecto' });
+renderProyTabsUI();
 
 // Recuperar carpeta guardada
 recuperarCarpetaDeIDB().then(handle => {
