@@ -1575,7 +1575,7 @@ async function cerrarProyecto(id) {
       }
     }
   } else {
-    const dirty = tab.ultimoGuardado != null && JSON.stringify(tab.estado) !== tab.ultimoGuardado;
+    const dirty = tab.ultimoGuardado != null && estadoParaComparar(tab.estado) !== tab.ultimoGuardado;
     if (dirty) {
       const accion = await confirmarCambiosSinGuardar(`El proyecto "${nombreDeTab(tab)}" tiene cambios sin guardar. ¿Qué deseas hacer?`);
       if (accion === 'cancelar') return;
@@ -2653,23 +2653,29 @@ function instalarApp() {
 }
 
 // ── DETECCIÓN DE CAMBIOS SIN GUARDAR (por pestaña de proyecto) ──
+// Se excluye el campo "fecha" de nivel superior (timestamp de generación) porque
+// cambia en cada llamada y hacía que siempre se detectara como "modificado".
+function estadoParaComparar(estado) {
+  const { fecha, ...resto } = estado;
+  return JSON.stringify(resto);
+}
 function marcarComoGuardado(estadoYaCalculado) {
   const estado = estadoYaCalculado || buildEstado();
   const tab = proyectosAbiertos.find(t => t.id === tabActivoId);
-  if (tab) tab.ultimoGuardado = JSON.stringify(estado);
+  if (tab) tab.ultimoGuardado = estadoParaComparar(estado);
 }
 function hayCambiosSinGuardar() {
   const tab = proyectosAbiertos.find(t => t.id === tabActivoId);
   if (!tab || tab.ultimoGuardado == null) return false;
   try {
-    return JSON.stringify(buildEstado()) !== tab.ultimoGuardado;
+    return estadoParaComparar(buildEstado()) !== tab.ultimoGuardado;
   } catch (e) {
     return false;
   }
 }
 function hayAlgunProyectoSinGuardar() {
   if (hayCambiosSinGuardar()) return true;
-  return proyectosAbiertos.some(t => t.id !== tabActivoId && t.ultimoGuardado != null && JSON.stringify(t.estado) !== t.ultimoGuardado);
+  return proyectosAbiertos.some(t => t.id !== tabActivoId && t.ultimoGuardado != null && t.estado != null && estadoParaComparar(t.estado) !== t.ultimoGuardado);
 }
 window.addEventListener('beforeunload', function (e) {
   if (hayAlgunProyectoSinGuardar()) {
